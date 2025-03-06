@@ -1,41 +1,4 @@
-version: "3.9"
-
 services:
-  # שירות האפליקציה (app)
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: app_container
-    # חושפים את פורט 5000 בתוך הרשת של Docker (Nginx ייגש אליו)
-    expose:
-      - "5000"
-    # נגדיר כרגע קצת משתני סביבה לדוגמה. הם יאפשרו לאפליקציה להתחבר ל-DB בעתיד.
-    environment:
-      - DB_HOST=db
-      - DB_USER=root
-      - DB_PASSWORD=my_secret_password
-      - DB_NAME=app_db
-    # אם תרצה לשמור לוגים של האפליקציה מחוץ לקונטיינר (לשם התמדה),
-    # תוכל להוסיף בהמשך:
-    # volumes:
-    #   - ./app_logs:/app/logs
-
-  # שירות ה-Nginx שישמש כ-Load Balancer
-  nginx:
-    image: nginx:latest
-    container_name: nginx_lb
-    ports:
-      - "80:80" # פורט 80 במכונה המקומית -> פורט 80 בתוך קונטיינר Nginx
-    volumes:
-      # בהמשך ניצור קובץ nginx.conf ונקשר אותו לפה
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      # אם תרצה לשמור לוגים של Nginx באופן מתמשך, ניתן להוסיף:
-      # - ./nginx_logs:/var/log/nginx
-    depends_on:
-      - app
-
-  # שירות MySQL
   db:
     image: mysql:8
     container_name: db_container
@@ -44,13 +7,34 @@ services:
       - MYSQL_DATABASE=app_db
       - MYSQL_USER=db_user
       - MYSQL_PASSWORD=db_user_pass
-    # נגדיר ווליום (volume) כדי לשמור מידע של ה-DB
     volumes:
       - db_data:/var/lib/mysql
-    # נוכל לפתוח את פורט 3306 כדי להתחבר ל-DB מחוץ לדוקר, אבל זה לא חובה:
-    # ports:
-    #   - "3306:3306"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_container
+    expose:
+      - "5000"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=my_secret_password
+      - DB_NAME=app_db
+    volumes:
+      - ./app_logs:/app/logs
+  nginx:
+    image: nginx:latest
+    container_name: nginx_lb
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
 
 volumes:
   db_data:
-    # כאן אנחנו לא צריכים להגדיר יותר מדי (Docker מייצר אוטומטית volume בשם db_data)
